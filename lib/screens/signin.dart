@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:trail_tales/CreateAccountScreen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'CreateAccountScreen.dart';
+import 'Home.dart';
+
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -12,6 +16,7 @@ class _HomeState extends State<Home> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _isPasswordHidden = true;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +41,9 @@ class _HomeState extends State<Home> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextField(
-                      style: TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white),
                       controller: emailController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.email_outlined, color: Colors.white),
                         labelText: "Enter your Email",
                         labelStyle: TextStyle(color: Colors.white),
@@ -49,11 +54,11 @@ class _HomeState extends State<Home> {
                     ),
                     SizedBox(height: screenHeight * 0.02),
                     TextField(
-                      style: TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white),
                       obscureText: _isPasswordHidden,
                       controller: passwordController,
                       decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.lock, color: Colors.white),
+                        prefixIcon: const Icon(Icons.lock, color: Colors.white),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _isPasswordHidden ? Icons.visibility : Icons.visibility_off,
@@ -66,8 +71,8 @@ class _HomeState extends State<Home> {
                           },
                         ),
                         labelText: "Enter Password",
-                        labelStyle: TextStyle(color: Colors.white),
-                        border: OutlineInputBorder(
+                        labelStyle: const TextStyle(color: Colors.white),
+                        border: const OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(10)),
                         ),
                       ),
@@ -78,13 +83,59 @@ class _HomeState extends State<Home> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
-                          side: BorderSide(color: Colors.white, width: 1),
+                          side: const BorderSide(color: Colors.white, width: 1),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        onPressed: () {},
-                        child: Text(
+                        onPressed: () async {
+                          String email = emailController.text.trim();
+                          String password = passwordController.text.trim();
+
+                          if (email.isEmpty || password.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Please fill in all fields")),
+                            );
+                            return;
+                          }
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          try {
+                            UserCredential userCredential = await FirebaseAuth.instance
+                                .signInWithEmailAndPassword(email: email, password: password);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Sign In successful!")),
+                            );
+
+                            // Navigate to the Home Screen
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const LibraryHomeScreen(),
+                              ),
+                            );
+                          } on FirebaseAuthException catch (e) {
+                            String errorMessage;
+                            if (e.code == 'user-not-found') {
+                              errorMessage = "No user found for this email";
+                            } else if (e.code == 'wrong-password') {
+                              errorMessage = "Incorrect Password";
+                            } else {
+                              errorMessage = "Sign In failed. Try again later";
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(errorMessage)),
+                            );
+                          } finally {
+                            setState(() {
+                              _isLoading = false;
+                            });
+                          }
+                        },
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text(
                           "Sign In",
                           style: TextStyle(
                             color: Colors.white,
@@ -100,18 +151,24 @@ class _HomeState extends State<Home> {
                         TextButton(
                           onPressed: () {
                             setState(() {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => CreateAccount() ));
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CreateAccount(),
+                                ),
+                              );
                             });
                           },
-                          child: Text(
+                          child: const Text(
                             "Create Account",
                             style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                         ),
-                        Text("|", style: TextStyle(color: Colors.white, fontSize: 16)),
+                        const Text("|",
+                            style: TextStyle(color: Colors.white, fontSize: 16)),
                         TextButton(
                           onPressed: () {},
-                          child: Text(
+                          child: const Text(
                             "Forget Password",
                             style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
